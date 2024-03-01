@@ -334,10 +334,19 @@ class BrandDetectionApp:
             self.manage_reference_image_and_canvas(self.selected_reference_image_path)
             self.reference_canvas.config(state="disabled")
             self.initial_components_status()
+            self.redraw_saved_areas()
         else:
             paths.SRC_ASSETS_DIR.joinpath("reference_images_names.txt").touch(exist_ok=True)
             paths.SRC_ASSETS_DIR.joinpath("last_reference_image_used.txt").touch(exist_ok=True)
             self.initial_components_status_with_selected_image_check()
+
+    def redraw_saved_areas(self):
+        self.reference_image_area_clear_button_click()
+        saved_coords = read_last_reference_image_coordinates(self.selected_reference_image_name)
+        for coords in saved_coords:
+            rect_id = self.reference_canvas.create_rectangle(*coords, outline="#00FF00", width=2)
+            self.rects.append(rect_id)
+
 
     def on_select_combobox(self, event):
         self.selected_reference_image_name = self.saved_reference_images_combobox.get()
@@ -357,13 +366,13 @@ class BrandDetectionApp:
         self.selected_reference_image_tk = ImageTk.PhotoImage(self.selected_reference_image)
         self.reference_canvas.create_image(0, 0, image=self.selected_reference_image_tk, anchor="nw")
 
-        # Koordinatları oku ve kullan
         self.selected_reference_image_coordinates = read_last_reference_image_coordinates(
             self.selected_reference_image_name)
         if self.selected_reference_image_coordinates:
             for coords in self.selected_reference_image_coordinates:
                 x1, y1, x2, y2 = coords  # Her bir koordinat setini unpack et
-                self.reference_canvas.create_rectangle(x1, y1, x2, y2, outline="#00FF00", width=2)
+                rect_id=self.reference_canvas.create_rectangle(x1, y1, x2, y2, outline="#00FF00", width=2)
+                self.rects.append(rect_id)
 
     def filling_combobox_options(self):
         self.saved_reference_images_names = read_saved_reference_images_names()
@@ -379,13 +388,14 @@ class BrandDetectionApp:
             self.rects.append(rect)
 
     def update_rect(self, event):
-        if not self.rects:
-            return
+        if self.reference_canvas["state"] != "disabled":
+            if not self.rects:
+                return
 
-        cur_x = self.reference_canvas.canvasx(event.x)
-        cur_y = self.reference_canvas.canvasy(event.y)
+            cur_x = self.reference_canvas.canvasx(event.x)
+            cur_y = self.reference_canvas.canvasy(event.y)
 
-        self.reference_canvas.coords(self.rects[-1], self.start_x, self.start_y, cur_x, cur_y)
+            self.reference_canvas.coords(self.rects[-1], self.start_x, self.start_y, cur_x, cur_y)
 
     def reference_image_area_select_button_click(self):
         confirmation = messagebox.askyesno(
@@ -413,7 +423,6 @@ class BrandDetectionApp:
             self.selected_reference_image_name, all_selected_coordinates
         )
         self.reference_image_area_apply_buttons_state()
-
 
     def reference_image_area_clear_button_click(self):
         for rect in self.rects:

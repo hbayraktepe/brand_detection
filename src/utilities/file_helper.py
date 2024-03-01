@@ -20,10 +20,13 @@ def read_last_reference_image_name():
     return reference_image_name
 
 
-def write_last_reference_image_coordinates(reference_image_name: str, coordinates: tuple[int]):
-    file_path = paths.SRC_COORDINATES_DIR.joinpath("".join([reference_image_name, ".txt"]))
+def write_last_reference_image_coordinates(reference_image_name: str, coordinates: list):
+    file_path = paths.SRC_COORDINATES_DIR.joinpath(f"{reference_image_name}.txt")
     with file_path.open("w", encoding="utf-8") as file:
-        file.write(", ".join(map(str, coordinates)))
+        for coord in coordinates:
+            line = f"{coord}\n"
+            file.write(line)
+
 
 
 def read_last_reference_image_coordinates(reference_image_name: str):
@@ -31,14 +34,11 @@ def read_last_reference_image_coordinates(reference_image_name: str):
     coordinates = []
     with file_path.open("r", encoding="utf-8") as file:
         for line in file:
-            # Parantez ve boşlukları kaldır
             cleaned_line = line.strip().translate(str.maketrans('', '', '() '))
-            # Koordinatları virgülle ayır ve integer'a çevir
             coord_list = list(map(int, cleaned_line.split(",")))
-            # Koordinat listesini tuple olarak dönüştür ve ekle
-            if len(coord_list) == 4:
-                coordinates.append(tuple(coord_list))
+            coordinates.append(tuple(coord_list))
     return coordinates
+
 
 
 
