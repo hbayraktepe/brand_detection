@@ -510,6 +510,22 @@ class BrandDetectionApp:
 
         self.product_canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3)
 
+    def minio_and_database_connection(self, brand_name, result_flag):
+        try:
+            bilateral_params, canny_params = split_tuple_values(
+                read_last_reference_image_parameters(self.selected_reference_image_name))
+            coords = ', '.join(map(str, self.selected_reference_image_coordinates))
+            response = add_record(68, datetime.now(), brand_name, bilateral_params, canny_params, coords,
+                                  result_flag)
+            logger.info(msg=f"Response: {response.text}")
+        except requests.exceptions.RequestException as err:
+            logger.error(msg=f"An error occurred: {str(err)}", exc_info=True)
+            messagebox.showerror("Hata", "Veri kaydedilemedi! Sunucu bağlantı hatası! ")
+
+        if response.status_code == 200:
+            record_id = response.json().get('added_record_id')
+            upload_to_minio(record_id, brand_name, self.selected_reference_image_path, result_flag)
+
     def product_compare_image_button_click(self):
         if self.current_canvas is None:
             self.manage_product_image_and_canvas()
@@ -532,27 +548,13 @@ class BrandDetectionApp:
                 if not score:  # Eğer skor yoksa, yani eşleşme başarısızsa
                     coords = self.selected_reference_image_coordinates[index - 1]  # İlgili koordinat setini al
                     self.manage_diff_image_and_canvas(diff_image, coords)
-                brand_name = self.saved_reference_images_combobox.get()
 
-                result_text, result_color, result_flag = ("BAŞARILI", "#00FF00", True) if score else (
-                "BAŞARISIZ", "#ff1e00", False)
-                self.result_dynamic_label.config(text=result_text, fg=result_color)
-
-
-                # try:
-                #     bilateral_params, canny_params = split_tuple_values(
-                #         read_last_reference_image_parameters(self.selected_reference_image_name))
-                #     coords = ', '.join(map(str, self.selected_reference_image_coordinates))
-                #     response = add_record(68, datetime.now(), brand_name, bilateral_params, canny_params, coords,
-                #                           result_flag)
-                #     logger.info(msg=f"Response: {response.text}")
-                # except requests.exceptions.RequestException as err:
-                #     logger.error(msg=f"An error occurred: {str(err)}", exc_info=True)
-                #     messagebox.showerror("Hata", "Veri kaydedilemedi! Sunucu bağlantı hatası! ")
-                #
-                # if response.status_code == 200:
-                #     record_id = response.json().get('added_record_id')
-                #     upload_to_minio(record_id, brand_name, self.selected_reference_image_path, result_flag)
+            result_text, result_color, result_flag = ("BAŞARILI", "#00FF00", True) if score else (
+            "BAŞARISIZ", "#ff1e00", False)
+            self.result_dynamic_label.config(text=result_text, fg=result_color)
+            print(result_text, result_color, result_flag)
+            brand_name = self.saved_reference_images_combobox.get()
+            self.minio_and_database_connection(brand_name, result_flag)
             self.show_comparison_results(comparison_results)
         else:
             self.product_close_camera_button_click()
