@@ -505,7 +505,6 @@ class BrandDetectionApp:
         Image.Image.paste(self.product_image, diff_image_pil, (x1, y1))
 
         self.product_image_tk = ImageTk.PhotoImage(self.product_image)
-        # Saklanan referansı kullanarak canvas üzerindeki görseli güncelle
         self.product_canvas.itemconfig(self.current_image_on_canvas, image=self.product_image_tk)
 
         self.product_canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3)
@@ -514,8 +513,10 @@ class BrandDetectionApp:
         try:
             bilateral_params, canny_params = split_tuple_values(
                 read_last_reference_image_parameters(self.selected_reference_image_name))
-            coords = ', '.join(map(str, self.selected_reference_image_coordinates))
-            response = add_record(68, datetime.now(), brand_name, bilateral_params, canny_params, coords,
+            print(self.selected_reference_image_coordinates)
+            formatted_coords =";".join(["({},{},{},{})".format(*coords) for coords in self.selected_reference_image_coordinates])
+            print(formatted_coords)
+            response = add_record(68, datetime.now(), brand_name, bilateral_params, canny_params, formatted_coords,
                                   result_flag)
             logger.info(msg=f"Response: {response.text}")
         except requests.exceptions.RequestException as err:
@@ -525,6 +526,7 @@ class BrandDetectionApp:
         if response.status_code == 200:
             record_id = response.json().get('added_record_id')
             upload_to_minio(record_id, brand_name, self.selected_reference_image_path, result_flag)
+
 
     def product_compare_image_button_click(self):
         if self.current_canvas is None:
