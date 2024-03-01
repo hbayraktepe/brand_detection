@@ -3,32 +3,68 @@ import cv2 as cv
 import numpy as np
 from skimage.metrics import structural_similarity
 from src.utilities.file_helper import read_last_reference_image_parameters
-from scipy.ndimage import distance_transform_edt
+from PIL import Image
+import imagehash
 
+def euclidean_distance(image1: np.ndarray, image2: np.ndarray) -> float:
+    flatten1 = image1.flatten()
+    flatten2 = image2.flatten()
+    distance = np.linalg.norm(flatten1 - flatten2)
+    max_distance = np.linalg.norm(np.full(flatten1.shape, 255))  # Tüm piksellerin maksimum değerde olduğu durum
+    distance_percentage = (distance / max_distance) * 100
+    print("Euclidean Distance as a percentage of max possible distance: {:.2f}%".format(distance_percentage))
+    return distance_percentage
 
-def calculate_intersection_and_union(edges1, edges2):
-    intersection = np.logical_and(edges1, edges2)
-    union = np.logical_or(edges1, edges2)
-    return intersection, union
-
-
-def dice_coefficient(intersection: np.ndarray, edges1: np.ndarray, edges2: np.ndarray) -> float:
+def histogram_intersection(hist1: np.ndarray, hist2: np.ndarray) -> float:
     """
-    Calculate Dice Coefficient for two images.
+    Calculate the histogram intersection between two histograms.
     """
-    dice_coeff = 2. * intersection.sum() / (edges1.sum() + edges2.sum())
-    print(f"Dice Benzerlik oranı: {dice_coeff}")
-    return dice_coeff
+    minima = np.minimum(hist1, hist2)
+    intersection = np.true_divide(np.sum(minima), np.sum(hist2))
+    return intersection
 
+def calculate_histogram_intersection_for_grayscale(images1: np.ndarray, images2: np.ndarray) -> float:
+    """
+    Calculate Histogram Intersection for two grayscale images.
+    """
+    # Grayscale görüntülerin histogramlarını hesapla
+    hist1 = cv.calcHist([images1], [0], None, [256], [0, 256])
+    hist2 = cv.calcHist([images2], [0], None, [256], [0, 256])
 
-# def jaccard_index(intersection: np.ndarray, union: np.ndarray) -> float:
-#     """
-#     Calculate Jaccard Index for two images.
-#     """
-#     jaccard_index = intersection.sum() / float(union.sum())
-#     print('Jaccard Index: ', jaccard_index)
-#     return jaccard_index
+    # Histogramları normalize et
+    cv.normalize(hist1, hist1, alpha=0, beta=1, norm_type=cv.NORM_MINMAX)
+    cv.normalize(hist2, hist2, alpha=0, beta=1, norm_type=cv.NORM_MINMAX)
 
+    # Histogramların kesişimini hesapla
+    intersection_score = histogram_intersection(hist1, hist2)
+    print("Histogram Intersection for Grayscale Images: ", intersection_score)
+    return intersection_score
+
+def sift_similarity(org_img: np.ndarray, pred_img: np.ndarray) -> Tuple[float, int]:
+    # SIFT özelliği çıkarıcıyı başlat
+    sift = cv.SIFT_create()
+
+    # Her iki görüntü için anahtar noktaları ve tanımlayıcıları hesapla
+    kp1, des1 = sift.detectAndCompute(org_img, None)
+    kp2, des2 = sift.detectAndCompute(pred_img, None)
+
+    # BFMatcher nesnesi oluştur ve anahtar noktaları eşleştir
+    bf = cv.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+
+    # Lowe'un oran testini uygula
+    good_matches = []
+    for m, n in matches:
+        if m.distance < 0.9 * n.distance:
+            good_matches.append(m)
+
+    # İyi eşleşmelerin sayısını ve toplam eşleşme sayısına oranını döndür
+    if len(matches) > 0:
+        ratio = len(good_matches) / len(matches)
+    else:
+        ratio = 0
+
+    return ratio, len(good_matches)
 
 def bhattacharyya_distance(edges1: np.ndarray, edges2: np.ndarray) -> float:
     """
@@ -42,23 +78,23 @@ def bhattacharyya_distance(edges1: np.ndarray, edges2: np.ndarray) -> float:
     print("Bhattacharyya Distance: ", bhattacharyya_distance_score)
     return bhattacharyya_distance_score
 
+def phash_percentage_difference(image1: np.ndarray, image2: np.ndarray) -> float:
+    # Numpy dizilerini PIL Image nesnelerine dönüştür
+    img1 = Image.fromarray(image1)
+    img2 = Image.fromarray(image2)
 
-def find_centroid(image):
-    contours, _ = cv.findContours(image, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    # Her iki resmin perceptual hash değerlerini hesapla
+    hash1 = imagehash.phash(img1)
+    hash2 = imagehash.phash(img2)
 
-    # En büyük kontürü bul
-    cnt = max(contours, key=cv.contourArea)
+    # İki hash arasındaki farkı hesapla
+    hash_difference = hash1 - hash2
 
-    # Momentleri hesapla
-    M = cv.moments(cnt)
-    print(f"Max Kontür: {M}")
-
-    # Merkezoidi bul
-    cx = int(M['m10'] / M['m00'])
-    cy = int(M['m01'] / M['m00'])
-
-    return cx, cy
-
+    # Maksimum farkı ve yüzdelik farkı hesapla (64 bitlik hash için maksimum fark 64)
+    maksimum_fark = 64
+    yuzde_fark = (hash_difference / maksimum_fark) * 100
+    print("{:.2f}%".format(yuzde_fark))
+    return yuzde_fark
 
 def filter_images(reference_image_name: str, reference_image, product_image) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -98,19 +134,6 @@ def find_the_difference_between_two_images(reference_image=None, reference_image
     # İki edge görüntüsü arasındaki farkı hesaplayın
     diff = cv.absdiff(reference_image_edges, product_image_edges)
 
-    # Sadece product_image_edges'teki ve diff'te olan kenarları alın
-    # shifted_edges_only = cv.bitwise_and(diff, product_image_edges)
-    #
-    # if euclidean_distance > 50:
-    #     h, w = shifted_edges_only.shape
-    #
-    #     for y in range(h):
-    #         for x in range(w):
-    #             if shifted_edges_only[y, x] != 0:  # Farklı ve kaymış kenar varsa
-    #                 reference_image_bgr[y, x] = [0, 0, 255]
-    #
-    #     return reference_image_bgr
-
     h, w = diff.shape
 
     for y in range(h):
@@ -128,52 +151,28 @@ def calculate_similarity(reference_image_name: str, sensitivity: float = 1.0, re
     filtered_reference_image, filtered_product_image, edge_detected_reference_image, edge_detected_product_image = filter_images(
         reference_image_name, reference_image, product_image
     )
-    reference_image_edges = (edge_detected_reference_image > 0).astype(int)
-    product_image_edges = (edge_detected_product_image > 0).astype(int)
-    # intersection, union = calculate_intersection_and_union(reference_image_edges, product_image_edges)
-    # jaccard_idx = jaccard_index(intersection, union)
-
-    # dice_coeff = dice_coefficient(intersection, reference_image_edges, product_image_edges)
 
     score, _ = structural_similarity(filtered_reference_image, filtered_product_image, full=True, channel_axis=1)
     print("Image similarity", score)
 
-    bhattacharyya_distance_score = bhattacharyya_distance(edge_detected_reference_image, edge_detected_product_image)
+    # bhattacharyya_distance_score = bhattacharyya_distance(edge_detected_reference_image, edge_detected_product_image)
+    #
+    # euclidean_distance_value = euclidean_distance(edge_detected_reference_image, edge_detected_product_image)
+    #
+    # # sift_ratio, sift_matches = sift_similarity(filtered_reference_image, filtered_product_image)
+    # # print(f"SIFT Matches: {sift_matches}, SIFT Ratio: {sift_ratio}")
+    #
+    # phash=phash_percentage_difference(filtered_reference_image, filtered_product_image)
 
-    # Centroid
-    cx1, cy1 = find_centroid(edge_detected_reference_image)
-    cx2, cy2 = find_centroid(edge_detected_product_image)
+    histI=calculate_histogram_intersection_for_grayscale(filtered_reference_image, filtered_product_image)
 
-    # Euclidean distance
-    distance = np.sqrt((cx1 - cx2) ** 2 + (cy1 - cy2) ** 2)
-    print(f"Euclidean distance: {distance}")
-
-    # Calculate thresholds based on sensitivity
-    # bhattacharyya_distance_threshold = 0.0005 / sensitivity
-    # ssim_threshold = 0.8 * sensitivity
-    # dice_coefficient_threshold = 0.7 * sensitivity
-
-    dist_transform = distance_transform_edt(~edge_detected_product_image)
-
-    # Şablon pikselleri ile distance transform'ı çarp
-    chamfer_matching = np.sum(dist_transform[edge_detected_reference_image > 0])
-    print(chamfer_matching)
-
-    if score > 0.90 and bhattacharyya_distance_score < 0.0005:
+    if  histI > 0.80 and score > 0.75:
         print(True)
         return True, None
     else:
         diff_image = find_the_difference_between_two_images(
             product_image,
             edge_detected_reference_image,
-            edge_detected_product_image,
-            distance
+            edge_detected_product_image
         )
         return False, cv.cvtColor(diff_image, cv.COLOR_BGR2RGB)
-
-    # Check if all similarity metrics are above their respective thresholds
-    # is_similar = (bhattacharyya_distance_score < bhattacharyya_distance_threshold) and (score > ssim_threshold) and (
-    #             dice_coeff > dice_coefficient_threshold)
-
-    # print(is_similar)
-    # return is_similar

@@ -30,7 +30,7 @@ from src.database.database import add_record, upload_to_minio
 
 # def listen_for_button_press(app):
 #     while True:
-#         input_state = GPIO.input(18)
+#         input_state = GPIO.input(18)  Bağlanılacak olan kablonun pini
 #         if input_state == False:
 #             app.product_compare_image_button_click()
 #             print('Button Pressed')
@@ -53,6 +53,8 @@ class BrandDetectionApp:
         self.screen_width = self.root.winfo_width()
         self.screen_height = self.root.winfo_height()
 
+        self.rects = []
+
         # Reference image settings
         self.reference_image_path = None
         self.selected_reference_image_path = paths.SRC_ASSETS_DIR.joinpath("selected_reference_image.png")
@@ -60,7 +62,7 @@ class BrandDetectionApp:
         self.selected_reference_image_tk = None
         self.cropped_reference_image = None
         self.selected_reference_image_name = None
-        self.selected_reference_image_coordinates = None
+        self.selected_reference_image_coordinates = []
         self.saved_reference_images_names = None
         self.new_reference_image_name = None
 
@@ -204,7 +206,7 @@ class BrandDetectionApp:
 
         self.reference_image_area_apply_button = ttk.Button(
             self.reference_image_area_select_buttons_frame,
-            text="Seçili alanı onayla",
+            text="Seçili alanları onayla",
             command=self.reference_image_area_apply_button_click,
             state="normal",
             style='Accent.TButton'
@@ -297,7 +299,7 @@ class BrandDetectionApp:
 
         # Bind events
         self.reference_canvas.bind("<Button-1>", self.start_rect)
-        self.reference_canvas.bind("<B1-Motion>", self.update_rect)
+        self.reference_canvas.bind("<ButtonRelease-1>", self.update_rect)
 
         self.initialize()
 
@@ -351,25 +353,15 @@ class BrandDetectionApp:
         self.reference_image_area_clear_button_click()
         self.selected_reference_image = Image.open(image_path)
         self.selected_reference_image_tk = ImageTk.PhotoImage(self.selected_reference_image)
-        self.reference_canvas.config(width=self.canvas_width, height=self.canvas_height)
         self.reference_canvas.create_image(0, 0, image=self.selected_reference_image_tk, anchor="nw")
-        self.selected_reference_image_coordinates = read_last_reference_image_coordinates(
-            self.selected_reference_image_name
-        )
-        x1, y1, self.start_x, self.start_y = self.selected_reference_image_coordinates
-        self.rect = self.reference_canvas.create_rectangle(x1, y1, self.start_x, self.start_y,
-                                                           outline="#00FF00", width=2)
 
-    def manage_product_image_and_canvas(self):
-        self.vid.snapshot(self.product_image_path)
-        self.product_canvas.delete(self.product_rect)
-        self.product_image = Image.open(self.product_image_path)
-        self.product_image_tk = ImageTk.PhotoImage(self.product_image)
-        self.product_canvas.config(width=self.canvas_width, height=self.canvas_height)
-        self.product_canvas.create_image(0, 0, image=self.product_image_tk, anchor="nw")
-        x1, y1, self.start_x, self.start_y = self.selected_reference_image_coordinates
-        self.product_rect = self.product_canvas.create_rectangle(x1, y1, self.start_x, self.start_y,
-                                                                 outline="blue", width=3)
+        # Koordinatları oku ve kullan
+        self.selected_reference_image_coordinates = read_last_reference_image_coordinates(
+            self.selected_reference_image_name)
+        if self.selected_reference_image_coordinates:
+            for coords in self.selected_reference_image_coordinates:
+                x1, y1, x2, y2 = coords  # Her bir koordinat setini unpack et
+                self.reference_canvas.create_rectangle(x1, y1, x2, y2, outline="#00FF00", width=2)
 
     def filling_combobox_options(self):
         self.saved_reference_images_names = read_saved_reference_images_names()
@@ -380,22 +372,18 @@ class BrandDetectionApp:
             self.start_x = self.reference_canvas.canvasx(event.x)
             self.start_y = self.reference_canvas.canvasy(event.y)
 
-            # Create rectangle if not yet exist
-            if not self.reference_canvas.find_withtag(self.rect):
-                self.rect = self.reference_canvas.create_rectangle(self.start_x, self.start_y, self.start_x,
-                                                                   self.start_y, outline="red", width=2)
-            else:  # Or update existing rectangle
-                self.reference_canvas.coords(self.rect, self.start_x, self.start_y,
-                                             self.start_x, self.start_y)
-                self.reference_canvas.itemconfig(self.rect, outline="red", width=2)
+            rect = self.reference_canvas.create_rectangle(self.start_x, self.start_y, self.start_x,
+                                                          self.start_y, outline="red", width=2)
+            self.rects.append(rect)
 
     def update_rect(self, event):
-        if self.reference_canvas["state"] != "disabled":
-            cur_x = self.reference_canvas.canvasx(event.x)
-            cur_y = self.reference_canvas.canvasy(event.y)
+        if not self.rects:
+            return
 
-            # Expand rectangle as you drag the mouse
-            self.reference_canvas.coords(self.rect, self.start_x, self.start_y, cur_x, cur_y)
+        cur_x = self.reference_canvas.canvasx(event.x)
+        cur_y = self.reference_canvas.canvasy(event.y)
+
+        self.reference_canvas.coords(self.rects[-1], self.start_x, self.start_y, cur_x, cur_y)
 
     def reference_image_area_select_button_click(self):
         confirmation = messagebox.askyesno(
@@ -408,22 +396,28 @@ class BrandDetectionApp:
         else:
             return
 
-    def reference_image_area_clear_button_click(self):
-        self.reference_canvas.delete(self.rect)
-
     def reference_image_area_apply_button_click(self):
-        coordinates = self.reference_canvas.coords(self.rect)
-        if coordinates:
-            x1, y1, x2, y2 = coordinates
-            box = (int(x1), int(y1), int(x2), int(y2))
-            self.selected_reference_image_coordinates = box
-            self.reference_canvas.itemconfig(self.rect, outline="#00FF00", width=2)
-            write_last_reference_image_coordinates(
-                self.selected_reference_image_name, box
-            )
-            self.reference_image_area_apply_buttons_state()
-        else:
-            messagebox.showwarning("Uyarı", "Lütfen bir referans alanı seçiniz!")
+        all_selected_coordinates = []  # Seçilen tüm alanların koordinatlarını tutacak liste
+        for rect in self.rects:
+            coordinates = self.reference_canvas.coords(rect)  # Mevcut dikdörtgenin koordinatlarını al
+            if coordinates:
+                x1, y1, x2, y2 = coordinates  # Koordinatları unpack et
+                box = (int(x1), int(y1), int(x2), int(y2))  # Koordinatları bir tuple olarak sakla
+                all_selected_coordinates.append(box)  # Koordinat setini listeye ekle
+                self.reference_canvas.itemconfig(rect, outline="#00FF00",
+                                                 width=2)  # Dikdörtgeni onaylanmış olarak işaretle
+        self.selected_reference_image_coordinates = all_selected_coordinates
+        write_last_reference_image_coordinates(
+            self.selected_reference_image_name, all_selected_coordinates
+        )
+        self.reference_image_area_apply_buttons_state()
+
+
+    def reference_image_area_clear_button_click(self):
+        for rect in self.rects:
+            self.reference_canvas.delete(rect)
+        self.rects.clear()
+
 
     def reference_select_image_button_click(self):
         confirmation = messagebox.askyesno("Referans Görüntü Değiştirme",
@@ -480,65 +474,101 @@ class BrandDetectionApp:
             messagebox.showwarning("Uyarı", f"Lütfen '{self.new_reference_image_name}' referans görseli için "
                                             f"bir referans alanı belirleyiniz!")
 
-    def manage_diff_image_and_canvas(self, image):
-        diff_image = Image.fromarray(image)
-        x1, y1, self.start_x, self.start_y = self.selected_reference_image_coordinates
-        self.product_canvas.delete(self.product_rect)
-        Image.Image.paste(self.product_image, diff_image, (x1, y1))
+    def manage_product_image_and_canvas(self):
+        # Ürün görselini kaydet ve yükle
+        self.vid.snapshot(self.product_image_path)
+        self.product_image = Image.open(self.product_image_path)
         self.product_image_tk = ImageTk.PhotoImage(self.product_image)
-        self.product_canvas.config(width=self.canvas_width, height=self.canvas_height)
-        self.product_canvas.create_image(0, 0, image=self.product_image_tk, anchor="nw")
-        self.product_rect = self.product_canvas.create_rectangle(x1, y1, self.start_x, self.start_y,
-                                                                 outline="blue", width=3)
+
+        # Görseli canvas'a ekle ve referansı sakla
+        self.current_image_on_canvas = self.product_canvas.create_image(0, 0, image=self.product_image_tk, anchor="nw")
+
+        for coords in self.selected_reference_image_coordinates:
+            x1, y1, x2, y2 = coords
+            self.product_canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3)
+
+    def manage_diff_image_and_canvas(self, diff_image, coords):
+        x1, y1, x2, y2 = coords
+
+        diff_image_pil = Image.fromarray(diff_image)
+        Image.Image.paste(self.product_image, diff_image_pil, (x1, y1))
+
+        self.product_image_tk = ImageTk.PhotoImage(self.product_image)
+        # Saklanan referansı kullanarak canvas üzerindeki görseli güncelle
+        self.product_canvas.itemconfig(self.current_image_on_canvas, image=self.product_image_tk)
+
+        self.product_canvas.create_rectangle(x1, y1, x2, y2, outline="blue", width=3)
 
     def product_compare_image_button_click(self):
         if self.current_canvas is None:
             self.manage_product_image_and_canvas()
-            cropped_reference_image, cropped_product_image = self.crop_areas_to_compare_from_images()
+            cropped_reference_images, cropped_product_images = self.crop_areas_to_compare_from_images()
 
-            score, diff_image = calculate_similarity(
-                self.selected_reference_image_name,
-                1.0,
-                cropped_reference_image,
-                cropped_product_image
-            )
+            comparison_results = {}  # Karşılaştırma sonuçlarını tutacak dict
 
-            brand_name = self.saved_reference_images_combobox.get()
+            for index, (cropped_reference_image, cropped_product_image) in enumerate(
+                    zip(cropped_reference_images, cropped_product_images), start=1):
+                score, diff_image = calculate_similarity(
+                    self.selected_reference_image_name,
+                    1.0,
+                    cropped_reference_image,
+                    cropped_product_image
+                )
 
-            result_text, result_color, result_flag = ("BAŞARILI", "#00FF00", True) if score else (
+                # Her bir karşılaştırma sonucunu dict'e ekle
+                comparison_results[f"Alan {index}"] = f"Skor: {score:.2f}"
+
+                if not score:  # Eğer skor yoksa, yani eşleşme başarısızsa
+                    coords = self.selected_reference_image_coordinates[index - 1]  # İlgili koordinat setini al
+                    self.manage_diff_image_and_canvas(diff_image, coords)
+                brand_name = self.saved_reference_images_combobox.get()
+
+                result_text, result_color, result_flag = ("BAŞARILI", "#00FF00", True) if score else (
                 "BAŞARISIZ", "#ff1e00", False)
+                self.result_dynamic_label.config(text=result_text, fg=result_color)
 
-            self.result_dynamic_label.config(text=result_text, fg=result_color)
 
-            if not result_flag:
-                self.manage_diff_image_and_canvas(diff_image)
-
-            try:
-                bilateral_params, canny_params = split_tuple_values(
-                    read_last_reference_image_parameters(self.selected_reference_image_name))
-                coords = ', '.join(map(str, self.selected_reference_image_coordinates))
-                response = add_record(68, datetime.now(), brand_name,
-                                      bilateral_params, canny_params, coords, result_flag
-                                      )
-                logger.info(msg=f"Response: {response.text}")
-            except requests.exceptions.RequestException as err:
-                logger.error(msg=f"An error occurred: {str(err)}", exc_info=True)
-                messagebox.showerror("Hata", "Veri kaydedilemedi! Sunucu bağlantı hatası! ")
-
-            if response.status_code == 200:
-                record_id = response.json().get('added_record_id')
-                upload_to_minio(record_id, brand_name, self.selected_reference_image_path, result_flag)
-
+                # try:
+                #     bilateral_params, canny_params = split_tuple_values(
+                #         read_last_reference_image_parameters(self.selected_reference_image_name))
+                #     coords = ', '.join(map(str, self.selected_reference_image_coordinates))
+                #     response = add_record(68, datetime.now(), brand_name, bilateral_params, canny_params, coords,
+                #                           result_flag)
+                #     logger.info(msg=f"Response: {response.text}")
+                # except requests.exceptions.RequestException as err:
+                #     logger.error(msg=f"An error occurred: {str(err)}", exc_info=True)
+                #     messagebox.showerror("Hata", "Veri kaydedilemedi! Sunucu bağlantı hatası! ")
+                #
+                # if response.status_code == 200:
+                #     record_id = response.json().get('added_record_id')
+                #     upload_to_minio(record_id, brand_name, self.selected_reference_image_path, result_flag)
+            self.show_comparison_results(comparison_results)
         else:
             self.product_close_camera_button_click()
             self.product_compare_image_button_click()
 
+    def show_comparison_results(self, comparison_results):
+        result_message = "Karşılaştırma Sonuçları:\n\n"
+        for area, score in comparison_results.items():
+            result_message += f"{area}: {score}\n"
+
+        messagebox.showinfo("Karşılaştırma Sonuçları", result_message)
+
     def crop_areas_to_compare_from_images(self):
-        cropped_reference_image = self._crop_image(self.selected_reference_image,
-                                                   self.reference_canvas.coords(self.rect))
-        cropped_product_image = self._crop_image(self.product_image, self.product_canvas.coords(
-            self.product_rect)) if self.product_rect else None
-        return cropped_reference_image, cropped_product_image
+        cropped_reference_images = []
+        cropped_product_images = []
+
+        for rect in self.rects:
+            coordinates = self.reference_canvas.coords(rect)
+            if coordinates:
+                x1, y1, x2, y2 = coordinates
+                cropped_reference_image = self._crop_image(self.selected_reference_image, (x1, y1, x2, y2))
+                cropped_reference_images.append(cropped_reference_image)
+                cropped_product_image = self._crop_image(self.product_image, (x1, y1, x2, y2))
+                cropped_product_images.append(cropped_product_image)
+        print(cropped_product_images)
+
+        return cropped_reference_images, cropped_product_images
 
     def _crop_image(self, image, coords):
         return image.crop(coords) if coords else None

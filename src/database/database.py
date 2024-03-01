@@ -21,7 +21,7 @@ def add_record(device_id: int, date: datetime, brand_name: str, bilateral_params
     :return: Response from the API (requests.Response object).
     """
     # API endpoint
-    url = "http://127.0.0.1:85/brand_detection/add_record/"
+    url = "http://192.168.4.118:85/brand_detection/add_record/"
 
     # Preparing the payload
     data = {
@@ -48,7 +48,7 @@ def upload_to_minio(record_id: int, brand_name: str, file_path: str, state: bool
 
     # Determine the file path in MinIO based on the state
     result_flag = "1" if state else "0"
-    object_name = f"{result_flag}/{record_id}_{brand_name}.jpg"
+    object_name = f"{brand_name}/{result_flag}/{record_id}_{brand_name}.jpg"
 
     # Check if the bucket exists, if not, create it
     if not minio_client.bucket_exists(bucket_name):
@@ -58,7 +58,7 @@ def upload_to_minio(record_id: int, brand_name: str, file_path: str, state: bool
     minio_client.fput_object(bucket_name, object_name, file_path)
 
 # MinIO configuration
-minio_url = "127.0.0.1:9000"
-minio_access_key = "minioadmin"
-minio_secret_key = "minioadmin"
+minio_url = "192.168.4.118:9000"
+minio_access_key = "mVhhXRCRQdILyZSaw9tG"
+minio_secret_key = "XeV6KYRSj6iDrBsRi3S0k9xpw1gxAY1mYIXYBXKW"
 bucket_name = "deneme"

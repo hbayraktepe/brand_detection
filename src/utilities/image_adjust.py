@@ -20,7 +20,7 @@ class ImageAdjustWindow:
         self.canvas = None
         self.bilateral_frame = None
         self.canny_frame = None
-        self.canvas_image = canvas_image
+        self.canvas_image = canvas_image ######top widget
         self.canvas_image_width = canvas_image.size[0]
         self.canvas_image_height = canvas_image.size[1]
         self.resize_rate = 1.0
