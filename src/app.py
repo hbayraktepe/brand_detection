@@ -3,7 +3,8 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as messagebox
-
+from tkinter import Toplevel, Label, Scale, HORIZONTAL
+from PIL import ImageTk, Image
 import requests
 from PIL import Image, ImageTk
 from src.config import paths, logger
@@ -304,7 +305,6 @@ class BrandDetectionApp:
         self.initialize()
 
     def create_new_window(self):
-        cropped_reference_image, _ = self.crop_areas_to_compare_from_images()
         params = read_last_reference_image_parameters(self.selected_reference_image_name)
 
         self.d_var.set(params[0])
@@ -313,10 +313,12 @@ class BrandDetectionApp:
         self.threshold1_var.set(params[3])
         self.threshold2_var.set(params[4])
 
+        full_reference_image = Image.open(self.selected_reference_image_path)
+
         self.image_adjust_window = ImageAdjustWindow(
             master=self.root,
             reference_image_name=self.selected_reference_image_name,
-            canvas_image=cropped_reference_image,
+            canvas_image=full_reference_image,
             d_var=self.d_var,
             sigma_color_var=self.sigma_color_var,
             sigma_space_var=self.sigma_space_var,

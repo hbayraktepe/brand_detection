@@ -52,13 +52,24 @@ class ImageAdjustWindow:
         """Create a canvas and load an image onto it."""
 
         self.canvas_frame = tk.LabelFrame(self.window, bd=5)
-        # self.canvas_frame.pack(padx=10, pady=10)
         self.canvas_frame.grid(row=0, column=0, columnspan=2, padx=20, pady=20)
+
+        orig_width, orig_height = self.canvas_image.size
+        max_size = 800
+        if orig_width > max_size or orig_height > max_size:
+            if orig_width > orig_height:
+                self.resize_rate = max_size / orig_width
+            else:
+                self.resize_rate = max_size / orig_height
+        else:
+            self.resize_rate = 1
+        self.canvas_image_width = int(orig_width * self.resize_rate)
+        self.canvas_image_height = int(orig_height * self.resize_rate)
 
         self.canvas = tk.Canvas(
             self.canvas_frame,
-            width=int(self.canvas_image_width * self.resize_rate),
-            height=int(self.canvas_image_height * self.resize_rate)
+            width=self.canvas_image_width,
+            height=self.canvas_image_height
         )
         self.canvas.pack()
 
