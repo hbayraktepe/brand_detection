@@ -11,6 +11,7 @@ Exports:
 
 Author: Yusuf Akyazıcı
 """
+
 from src.config.config import ProjectPaths, configure_logging
 
 paths = ProjectPaths()

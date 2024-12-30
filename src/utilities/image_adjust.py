@@ -1,15 +1,27 @@
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image, ImageTk
+
 import cv2 as cv
 import numpy as np
+from PIL import Image, ImageTk
+
 from src.utilities.file_helper import write_last_reference_image_parameters
 
 
 class ImageAdjustWindow:
     """A window for adjusting image filter parameters."""
-    def __init__(self, reference_image_name=None, master=None, canvas_image=None, d_var=None,
-                 sigma_color_var=None, sigma_space_var=None, threshold1_var=None, threshold2_var=None):
+
+    def __init__(
+        self,
+        reference_image_name=None,
+        master=None,
+        canvas_image=None,
+        d_var=None,
+        sigma_color_var=None,
+        sigma_space_var=None,
+        threshold1_var=None,
+        threshold2_var=None,
+    ):
         self.window = tk.Toplevel(master)
         self.window.resizable(False, False)
         self.window.title("Parametre Ayarları")
@@ -20,12 +32,16 @@ class ImageAdjustWindow:
         self.canvas = None
         self.bilateral_frame = None
         self.canny_frame = None
-        self.canvas_image = canvas_image ######top widget
+        self.canvas_image = canvas_image  ######top widget
         self.canvas_image_width = canvas_image.size[0]
         self.canvas_image_height = canvas_image.size[1]
         self.resize_rate = 1.0
-        self.original_image = cv.cvtColor(np.array(canvas_image.copy()), cv.COLOR_RGB2GRAY)   # Store a copy of the original image
-        self.filtered_image = cv.cvtColor(np.array(canvas_image.copy()), cv.COLOR_RGB2GRAY)
+        self.original_image = cv.cvtColor(
+            np.array(canvas_image.copy()), cv.COLOR_RGB2GRAY
+        )  # Store a copy of the original image
+        self.filtered_image = cv.cvtColor(
+            np.array(canvas_image.copy()), cv.COLOR_RGB2GRAY
+        )
         self.edge_detected_image = None
 
         # Assign filter parameters
@@ -69,7 +85,7 @@ class ImageAdjustWindow:
         self.canvas = tk.Canvas(
             self.canvas_frame,
             width=self.canvas_image_width,
-            height=self.canvas_image_height
+            height=self.canvas_image_height,
         )
         self.canvas.pack()
 
@@ -78,16 +94,13 @@ class ImageAdjustWindow:
 
     def update_canvas(self):
         img = self.canvas_image.resize(
-            (int(self.canvas_image_width * self.resize_rate),
-             int(self.canvas_image_height * self.resize_rate))
+            (
+                int(self.canvas_image_width * self.resize_rate),
+                int(self.canvas_image_height * self.resize_rate),
+            )
         )
         img = ImageTk.PhotoImage(img)
-        self.canvas.create_image(
-            0,
-            0,
-            anchor=tk.NW,
-            image=img
-        )
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=img)
 
         # Keep a reference to the image to prevent it from being garbage collected
         self.canvas.image = img
@@ -95,20 +108,20 @@ class ImageAdjustWindow:
     def create_sliders(self):
         """Create sliders for adjusting filter parameters."""
 
-        self.style_image_scale.configure('Accent.TButton', font="Helvetica, 14")
+        self.style_image_scale.configure("Accent.TButton", font="Helvetica, 14")
 
         # Bilateral Filter Parameters
         self.bilateral_frame = tk.LabelFrame(
             self.window,
-            text='Bilateral Filtre Parametreleri',
-            font=("Helvetica", 14, "bold")
+            text="Bilateral Filtre Parametreleri",
+            font=("Helvetica", 14, "bold"),
         )
         # self.bilateral_frame.pack(padx=20, pady=10)
         self.bilateral_frame.grid(row=1, column=0, padx=20, pady=10)
         bilateral_parameters = [
-            (self.d_var, 1, 100, 'd'),
-            (self.sigma_color_var, 0, 255, 'Sigma Color', 0.1),
-            (self.sigma_space_var, 0, 255, 'Sigma Space', 0.1)
+            (self.d_var, 1, 100, "d"),
+            (self.sigma_color_var, 0, 255, "Sigma Color", 0.1),
+            (self.sigma_space_var, 0, 255, "Sigma Space", 0.1),
         ]
 
         for param in bilateral_parameters:
@@ -123,20 +136,20 @@ class ImageAdjustWindow:
                 orient=tk.HORIZONTAL,
                 length=350,
                 resolution=resolution,
-                font="Helvetica, 14"
+                font="Helvetica, 14",
             ).pack(padx=20, pady=2)
 
         # Canny Edge Detector Parameters
         self.canny_frame = tk.LabelFrame(
             self.window,
-            text='Canny Kenar Algılayıcı Parametreleri',
-            font=("Helvetica", 14, "bold")
+            text="Canny Kenar Algılayıcı Parametreleri",
+            font=("Helvetica", 14, "bold"),
         )
         # self.canny_frame.pack(padx=20, pady=10)
         self.canny_frame.grid(row=1, column=1, padx=20, pady=10)
         canny_parameters = [
-            (self.threshold1_var, 0, 255, 'Threshold 1'),
-            (self.threshold2_var, 0, 255, 'Threshold 2')
+            (self.threshold1_var, 0, 255, "Threshold 1"),
+            (self.threshold2_var, 0, 255, "Threshold 2"),
         ]
 
         for param in canny_parameters:
@@ -151,7 +164,7 @@ class ImageAdjustWindow:
                 orient=tk.HORIZONTAL,
                 length=350,
                 resolution=resolution,
-                font="Helvetica, 14"
+                font="Helvetica, 14",
             ).pack(padx=20, pady=2)
 
     def create_apply_button(self):
@@ -160,9 +173,9 @@ class ImageAdjustWindow:
         # The apply button is now created inside the bilateral_frame
         apply_button = ttk.Button(
             self.bilateral_frame,
-            text='Ayarları Kaydet',
-            style='Accent.TButton',
-            command=self.apply_filters
+            text="Ayarları Kaydet",
+            style="Accent.TButton",
+            command=self.apply_filters,
         )
         apply_button.pack(pady=15)
 
@@ -171,9 +184,9 @@ class ImageAdjustWindow:
 
         apply_edge_button = ttk.Button(
             self.canny_frame,
-            text='Ayarları Kaydet',
-            style='Accent.TButton',
-            command=self.apply_edge_detection
+            text="Ayarları Kaydet",
+            style="Accent.TButton",
+            command=self.apply_edge_detection,
         )
         apply_edge_button.pack(pady=15)
 
@@ -182,9 +195,9 @@ class ImageAdjustWindow:
 
         apply_contour_button = ttk.Button(
             self.canny_frame,
-            text='Contour Önizleme',
-            style='Accent.TButton',
-            command=self.apply_contour
+            text="Contour Önizleme",
+            style="Accent.TButton",
+            command=self.apply_contour,
         )
         apply_contour_button.pack(pady=15)
 
@@ -199,7 +212,7 @@ class ImageAdjustWindow:
             self.canvas_image,
             self.d_var.get(),
             self.sigma_color_var.get(),
-            self.sigma_space_var.get()
+            self.sigma_space_var.get(),
         )
 
         # Convert back to PIL format
@@ -216,9 +229,7 @@ class ImageAdjustWindow:
 
         # Apply Canny edge detection
         self.edge_detected_image = cv.Canny(
-            self.canvas_image,
-            self.threshold1_var.get(),
-            self.threshold2_var.get()
+            self.canvas_image, self.threshold1_var.get(), self.threshold2_var.get()
         )
 
         # Convert back to PIL format
@@ -229,7 +240,9 @@ class ImageAdjustWindow:
 
     def apply_contour(self):
         image_colored = cv.cvtColor(self.filtered_image, cv.COLOR_GRAY2BGR)
-        contours, _ = cv.findContours(self.edge_detected_image, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv.findContours(
+            self.edge_detected_image, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE
+        )
         cv.drawContours(image_colored, contours, -1, (0, 255, 0), 2)
         self.canvas_image = Image.fromarray(image_colored)
         self.update_canvas()
@@ -242,7 +255,7 @@ class ImageAdjustWindow:
             self.sigma_color_var.get(),
             self.sigma_space_var.get(),
             self.threshold1_var.get(),
-            self.threshold2_var.get()
+            self.threshold2_var.get(),
         )
         write_last_reference_image_parameters(self.image_name, values_of_parameters)
         self.window.destroy()

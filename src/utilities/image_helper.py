@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from PIL import Image, ImageTk
+
 from src.config import paths
 
 
@@ -19,17 +21,17 @@ def save_cropped_reference_image(reference_image: Image, selected_area: tuple[in
     print(f"Selection saved to {cropped_image_path}")
 
 
-def crop_areas_to_compare_from_images(reference_image: Image, reference_image_coordinates: tuple[int],
-                                      product_image: Image, product_image_coordinates: tuple[int]):
+def crop_areas_to_compare_from_images(
+    reference_image: Image,
+    reference_image_coordinates: tuple[int],
+    product_image: Image,
+    product_image_coordinates: tuple[int],
+):
     cropped_reference_image = reference_image.crop(reference_image_coordinates)
     cropped_product_image = product_image.crop(product_image_coordinates)
     return cropped_reference_image, cropped_product_image
 
 
-
 # def load_
 
 # def save_cropped_reference_image_box(selected_reference_image: Image, selected_area_box: tuple[int]):
-
-
-

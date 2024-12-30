@@ -10,10 +10,12 @@ modules. Database configurations are loaded from environment variables.
 
 Author: Yusuf Akyazıcı
 """
+
 import logging.handlers
-from pathlib import Path
-from dotenv import load_dotenv
 from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -29,7 +31,9 @@ class ProjectPaths:
     SRC_REFERENCE_IMAGES_DIR: Path = SRC_ASSETS_DIR / "reference_images"
     SRC_COORDINATES_DIR: Path = SRC_ASSETS_DIR / "coordinates"
     SRC_AZURE_TTK_THEME_DIR: Path = SRC_ASSETS_DIR / "Azure-ttk-theme" / "azure.tcl"
-    SRC_PARAMETERS_OF_REFERENCE_IMAGES: Path = SRC_ASSETS_DIR / "parameters_of_reference_images"
+    SRC_PARAMETERS_OF_REFERENCE_IMAGES: Path = (
+        SRC_ASSETS_DIR / "parameters_of_reference_images"
+    )
     SRC_CONFIG_DIR: Path = SRC_DIR / "config"
     SRC_DATABASE_DIR: Path = SRC_DIR / "database"
     SRC_UTILITIES_DIR: Path = SRC_DIR / "utilities"

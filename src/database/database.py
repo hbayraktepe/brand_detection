@@ -1,9 +1,18 @@
-import requests
 from datetime import datetime
+
+import requests
 from minio import Minio
 
-def add_record(device_id: int, date: datetime, brand_name: str, bilateral_params: str,
-               canny_params: str, coordinates: str, state: bool) -> requests.Response:
+
+def add_record(
+    device_id: int,
+    date: datetime,
+    brand_name: str,
+    bilateral_params: str,
+    canny_params: str,
+    coordinates: str,
+    state: bool,
+) -> requests.Response:
     """
     Adds a record to the brand_detection API.
 
@@ -31,12 +40,13 @@ def add_record(device_id: int, date: datetime, brand_name: str, bilateral_params
         "bilateral_params": bilateral_params,
         "canny_params": canny_params,
         "coordinates": coordinates,
-        "state": state
+        "state": state,
     }
 
     # Making the POST request
     response = requests.post(url, json=data)
     return response
+
 
 def upload_to_minio(record_id: int, brand_name: str, file_path: str, state: bool):
     """
@@ -44,7 +54,12 @@ def upload_to_minio(record_id: int, brand_name: str, file_path: str, state: bool
     """
 
     # Initialize MinIO client
-    minio_client = Minio(minio_url, access_key=minio_access_key, secret_key=minio_secret_key, secure=False)
+    minio_client = Minio(
+        minio_url,
+        access_key=minio_access_key,
+        secret_key=minio_secret_key,
+        secure=False,
+    )
 
     # Determine the file path in MinIO based on the state
     result_flag = "1" if state else "0"
@@ -56,6 +71,7 @@ def upload_to_minio(record_id: int, brand_name: str, file_path: str, state: bool
 
     # Upload the file
     minio_client.fput_object(bucket_name, object_name, file_path)
+
 
 # MinIO configuration
 minio_url = "192.168.4.118:9000"
